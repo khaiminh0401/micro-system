@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-reverse-engineering PUBLIC
+        "-//Hibernate/Hibernate Reverse Engineering DTD 3.0//EN"
+        "http://hibernate.org/dtd/hibernate-reverse-engineering-3.0.dtd">
+<hibernate-reverse-engineering>
+    <!-- Cấu hình global -->
+    <type-mapping>
+        <!-- Mapping types -->
+        <sql-type jdbc-type="TIMESTAMP" hibernate-type="java.time.LocalDateTime"/>
+        <sql-type jdbc-type="DATE" hibernate-type="java.time.LocalDate"/>
+        <sql-type jdbc-type="TIME" hibernate-type="java.time.LocalTime"/>
+    </type-mapping>
+    
+    <!-- Cấu hình schema (có thể bỏ qua nếu chỉ có 1 schema) -->
+    <schema-selection match-schema="public"/>
+    
+    <!-- Cấu hình tables -->
+    <!-- Ví dụ: Chỉ generate cho một số tables -->
+    <!-- 
+    <table-filter match-name="users" exclude="false"/>
+    <table-filter match-name="roles" exclude="false"/>
+    <table-filter match-name=".*" exclude="true"/>
+    -->
+    
+    <!-- Tạo tất cả tables -->
+    <table-filter match-name=".*" exclude="false"/>
+</hibernate-reverse-engineering>

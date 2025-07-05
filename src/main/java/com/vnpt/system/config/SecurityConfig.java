@@ -14,9 +14,10 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests((authz) -> authz
-                        .requestMatchers("/", "/hello", "/public/**").permitAll()
+                        .requestMatchers("/", "/hello", "/public/**", "/api/users/**").permitAll()
                         .anyRequest().authenticated())
-                .httpBasic(Customizer.withDefaults()); // hoặc .httpBasic() nếu muốn dùng basic auth
+                .httpBasic(Customizer.withDefaults())
+                .csrf(csrf -> csrf.disable()); // Disable CSRF for API testing
         return http.build();
     }
 }

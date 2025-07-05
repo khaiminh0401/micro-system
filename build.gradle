@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.3'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'org.hibernate.orm' version '6.4.4.Final'
 }
 
 group = 'com.vnpt'
@@ -34,8 +35,31 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testImplementation 'com.h2database:h2'
+	
+	// Hibernate Tools for reverse engineering
+	implementation 'org.hibernate.tool:hibernate-tools-orm:6.4.4.Final'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// Task để generate entities từ database
+task generateEntities(type: JavaExec) {
+	description = 'Generate JPA entities from database'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.vnpt.system.generator.SimpleEntityGenerator'
+}
+
+// Task để chạy hibernate tools reverse engineering
+task reverseEngineer(type: JavaExec) {
+	description = 'Run Hibernate reverse engineering'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'org.hibernate.tool.ant.HibernateToolTask'
+	
+	doFirst {
+		println "Running Hibernate reverse engineering..."
+		println "Database URL: ${project.findProperty('db.url') ?: 'jdbc:postgresql://aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres'}"
+	}
 }
