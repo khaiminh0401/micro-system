@@ -4,6 +4,11 @@ import com.vnpt.system.entity.AdUser;
 import com.vnpt.system.repository.AdUserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +24,10 @@ import java.util.UUID;
 public class AdUserService {
     
     private final AdUserRepository adUserRepository;
+    private final PasswordEncoder passwordEncoder;
+    
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
     
     /**
      * Lấy tất cả users
@@ -36,7 +45,9 @@ public class AdUserService {
     
     /**
      * Lấy user theo username
+     * Cache user theo username vào Redis khi truy vấn
      */
+    @Cacheable(value = "userCache", key = "#username")
     public Optional<AdUser> getUserByUsername(String username) {
         return adUserRepository.findByUsername(username);
     }
@@ -48,6 +59,12 @@ public class AdUserService {
         if (user.getId() == null) {
             user.setId(UUID.randomUUID().toString());
         }
+        
+        // Hash password before saving
+        if (user.getPassword() != null) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+        
         user.setThoiGianTao(LocalDateTime.now());
         
         log.info("Creating new user: {}", user.getUsername());
@@ -67,7 +84,8 @@ public class AdUserService {
                 user.setUsername(userDetails.getUsername());
             }
             if (userDetails.getPassword() != null) {
-                user.setPassword(userDetails.getPassword());
+                // Hash password before updating
+                user.setPassword(passwordEncoder.encode(userDetails.getPassword()));
             }
             
             user.setThoiGianCapNhat(LocalDateTime.now());
@@ -102,9 +120,35 @@ public class AdUserService {
     }
     
     /**
-     * Xác thực user
+     * Lưu user vào Redis khi login thành công (distributed cache)
      */
-    public Optional<AdUser> authenticate(String username, String password) {
-        return adUserRepository.findByUsernameAndPassword(username, password);
+    public void cacheUserLogin(AdUser user) {
+        if (user != null && user.getUsername() != null) {
+            String key = "user:" + user.getUsername();
+            redisTemplate.opsForValue().set(key, user);
+            log.info("Cached user login in Redis: {}", key);
+        }
+    }
+
+    /**
+     * Lấy user từ Redis theo username (distributed cache)
+     */
+    @Cacheable(value = "userLoginCache", key = "#username")
+    public AdUser getCachedUser(String username) {
+        // Trả về null để Spring Cache tự lấy từ Redis
+        return null;
+    }
+
+    /**
+     * Xác thực user
+     * Khi login thành công, lưu user vào Redis bằng @CachePut
+     */
+    @CachePut(value = "userLoginCache", key = "#username")
+    public AdUser authenticateAndCache(String username, String password) {
+        Optional<AdUser> userOpt = adUserRepository.findByUsernameAndPassword(username, password);
+        if (userOpt.isPresent()) {
+            return userOpt.get();
+        }
+        return null;
     }
 }

@@ -51,18 +51,32 @@ public class AdUserController {
      * Tạo user mới
      */
     @PostMapping
-    public ResponseEntity<AdUser> createUser(@RequestBody AdUser user) {
+    public ResponseEntity<?> createUser(@RequestBody AdUser user) {
         try {
-            // Kiểm tra username đã tồn tại
-            if (adUserService.existsByUsername(user.getUsername())) {
-                return ResponseEntity.badRequest().build();
+            // Validate required fields
+            if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+                log.error("Username is required");
+                return ResponseEntity.badRequest().body("Username is required");
             }
             
+            if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
+                log.error("Password is required");
+                return ResponseEntity.badRequest().body("Password is required");
+            }
+            
+            // Kiểm tra username đã tồn tại
+            if (adUserService.existsByUsername(user.getUsername())) {
+                log.error("Username already exists: {}", user.getUsername());
+                return ResponseEntity.badRequest().body("Username already exists");
+            }
+            
+            log.info("Creating user with username: {}", user.getUsername());
             AdUser createdUser = adUserService.createUser(user);
+            log.info("User created successfully: {}", createdUser.getUsername());
             return ResponseEntity.ok(createdUser);
         } catch (Exception e) {
-            log.error("Error creating user", e);
-            return ResponseEntity.internalServerError().build();
+            log.error("Error creating user: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("Error creating user: " + e.getMessage());
         }
     }
     
@@ -103,9 +117,12 @@ public class AdUserController {
      */
     @PostMapping("/authenticate")
     public ResponseEntity<AdUser> authenticate(@RequestBody AuthRequest authRequest) {
-        Optional<AdUser> user = adUserService.authenticate(authRequest.getUsername(), authRequest.getPassword());
-        return user.map(ResponseEntity::ok)
-                  .orElse(ResponseEntity.status(401).build());
+        AdUser user = adUserService.authenticateAndCache(authRequest.getUsername(), authRequest.getPassword());
+        if (user != null) {
+            return ResponseEntity.ok(user);
+        } else {
+            return ResponseEntity.status(401).build();
+        }
     }
     
     /**
